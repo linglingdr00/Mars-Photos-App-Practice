@@ -21,10 +21,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.android.marsphotos.network.MarsApi
-import com.example.android.marsphotos.network.MarsPhoto
 import kotlinx.coroutines.launch
-
-enum class MarsApiStatus { LOADING, ERROR, DONE }
 
 /**
  * The [ViewModel] that is attached to the [OverviewFragment].
@@ -32,18 +29,10 @@ enum class MarsApiStatus { LOADING, ERROR, DONE }
 class OverviewViewModel : ViewModel() {
 
     // The internal MutableLiveData that stores the status of the most recent request
-    private val _status = MutableLiveData<MarsApiStatus>()
+    private val _status = MutableLiveData<String>()
 
     // The external immutable LiveData for the request status
-    val status: LiveData<MarsApiStatus> = _status
-
-    // Internally, we use a MutableLiveData, because we will be updating the List of MarsPhoto
-    // with new values
-    private val _photos = MutableLiveData<List<MarsPhoto>>()
-
-    // The external LiveData interface to the property is immutable, so only this class can modify
-    val photos: LiveData<List<MarsPhoto>> = _photos
-
+    val status: LiveData<String> = _status
     /**
      * Call getMarsPhotos() on init so we can display status immediately.
      */
@@ -56,16 +45,19 @@ class OverviewViewModel : ViewModel() {
      * [MarsPhoto] [List] [LiveData].
      */
     private fun getMarsPhotos() {
-
+        // 使用 viewModelScope.launch 啟動 coroutine
         viewModelScope.launch {
-            _status.value = MarsApiStatus.LOADING
             try {
-                _photos.value = MarsApi.retrofitService.getPhotos()
-                _status.value = MarsApiStatus.DONE
+                /* 使用 MarsApi 從 retrofitService interface 呼叫 getPhotos() 方法，
+                   將傳回的 response 儲存在 listResult */
+                val listResult = MarsApi.retrofitService.getPhotos()
+                // 將剛從後端 server 收到的結果指派至 _status.value
+                _status.value = "Success: ${listResult.size} Mars photos retrieved"
             } catch (e: Exception) {
-                _status.value = MarsApiStatus.ERROR
-                _photos.value = listOf()
+                // 如果發生 exception 就顯示 error message
+                _status.value = "Failure: ${e.message}"
             }
+
         }
     }
 }
