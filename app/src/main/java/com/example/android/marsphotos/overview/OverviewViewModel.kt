@@ -21,7 +21,10 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.android.marsphotos.network.MarsApi
+import com.example.android.marsphotos.network.MarsPhoto
 import kotlinx.coroutines.launch
+
+enum class MarsApiStatus { LOADING, ERROR, DONE }
 
 /**
  * The [ViewModel] that is attached to the [OverviewFragment].
@@ -29,10 +32,14 @@ import kotlinx.coroutines.launch
 class OverviewViewModel : ViewModel() {
 
     // The internal MutableLiveData that stores the status of the most recent request
-    private val _status = MutableLiveData<String>()
+    private val _status = MutableLiveData<MarsApiStatus>()
 
     // The external immutable LiveData for the request status
-    val status: LiveData<String> = _status
+    val status: LiveData<MarsApiStatus> = _status
+    // 新增 MutableLiveData: _photos 以儲存單個 MarsPhoto object
+    private val _photos = MutableLiveData<List<MarsPhoto>>()
+    // 新增 LiveData: photos 以作為 public backing field
+    val photos: LiveData<List<MarsPhoto>> = _photos
     /**
      * Call getMarsPhotos() on init so we can display status immediately.
      */
@@ -48,14 +55,17 @@ class OverviewViewModel : ViewModel() {
         // 使用 viewModelScope.launch 啟動 coroutine
         viewModelScope.launch {
             try {
-                /* 使用 MarsApi 從 retrofitService interface 呼叫 getPhotos() 方法，
-                   將傳回的 response 儲存在 listResult */
-                val listResult = MarsApi.retrofitService.getPhotos()
+                // 等待資料時的初始 status
+                _status.value = MarsApiStatus.LOADING
+                // 使用 MarsApi 從 retrofitService interface 呼叫 getPhotos() 方法
+                _photos.value = MarsApi.retrofitService.getPhotos()
                 // 將剛從後端 server 收到的結果指派至 _status.value
-                _status.value = "Success: ${listResult.size} Mars photos retrieved"
+                _status.value = MarsApiStatus.DONE
             } catch (e: Exception) {
                 // 如果發生 exception 就顯示 error message
-                _status.value = "Failure: ${e.message}"
+                _status.value = MarsApiStatus.ERROR
+                // 將 _photos 設為 empty list(清除 recycler view)
+                _photos.value = listOf()
             }
 
         }
